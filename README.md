@@ -94,18 +94,3 @@ Media, volume, and brightness keys use PipeWire, Playerctl, and BrightnessCtl.
 - Hyprpaper is optional and is not started automatically because the current wallpaper image is missing.
 - Super+C and Super+K expect the `code` and `keepassxc` commands to be installed.
 
-## Push to GitHub
-
-Review the files before publishing. Keep this repository private if you don't want to publish your personal desktop preferences. From this directory:
-
-```sh
-git init -b main
-git add .
-git diff --cached --check
-git diff --cached
-git commit -m "Add Arch Hyprland dotfiles"
-git remote add origin git@github.com:YOUR_USERNAME/arch-hyprland-dotfiles.git
-git push -u origin main
-```
-
-Replace `YOUR_USERNAME` with your GitHub username. Run Git commands only inside this dedicated folder, never from the whole home directory.
