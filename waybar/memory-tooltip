@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+
+import glob
+import json
+
+
+def read_memory():
+    values = {}
+    with open("/proc/meminfo", encoding="ascii") as meminfo:
+        for line in meminfo:
+            key, value, *_ = line.split()
+            if key in ("MemTotal:", "MemAvailable:"):
+                values[key] = int(value)
+    total_kib = values["MemTotal:"]
+    used_kib = total_kib - values["MemAvailable:"]
+    return used_kib, total_kib
+
+
+def read_processes():
+    processes = []
+    for status_path in glob.glob("/proc/[0-9]*/status"):
+        name = None
+        rss_kib = 0
+        try:
+            with open(status_path, encoding="utf-8", errors="replace") as status:
+                for line in status:
+                    if line.startswith("Name:"):
+                        name = line.split(":", 1)[1].strip()
+                    elif line.startswith("VmRSS:"):
+                        rss_kib = int(line.split()[1])
+        except (FileNotFoundError, PermissionError, ProcessLookupError, ValueError):
+            continue
+        if name and rss_kib:
+            processes.append((rss_kib, name))
+    return sorted(processes, reverse=True)[:10]
+
+
+processes = read_processes()
+amounts = [f"{rss_kib / 1024:.1f}" for rss_kib, _ in processes]
+amount_width = max((len(amount) for amount in amounts), default=0)
+process_labels = [f"{amount:>{amount_width}} MiB" for amount in amounts]
+label_width = max([len("Total"), *(len(label) for label in process_labels)])
+used_kib, total_kib = read_memory()
+used_gib = used_kib / (1024 * 1024)
+total_gib = total_kib / (1024 * 1024)
+usage_percent = used_kib * 100 / total_kib
+rows = [f"{'Total':<{label_width}} : {used_gib:.1f} / {total_gib:.1f} GiB"]
+rows.extend(
+    f"{label:<{label_width}} : {name}"
+    for label, (_, name) in zip(process_labels, processes)
+)
+if not processes:
+    rows.append("No process memory data available")
+
+print(json.dumps({
+    "text": f" {usage_percent:.0f}%",
+    "tooltip": "\n".join(rows),
+}, ensure_ascii=False))

@@ -1,0 +1,25 @@
+# Compact black notifications with the same subtle transparency as floating windows.
+font=Sans 10
+background-color=#080B10EB
+text-color=#F2F2F2FF
+border-color=#626B75FF
+border-size=1
+border-radius=0
+width=360
+height=120
+outer-margin=12
+margin=4
+padding=10
+max-visible=3
+
+# General timeout (milliseconds)
+default-timeout=5000
+ignore-timeout=false
+
+# Force critical notifications to disappear too
+[urgency=critical]
+default-timeout=5000
+
+# Optional: dismiss on click (very nice)
+on-button-left=dismiss
+on-button-right=dismiss-all

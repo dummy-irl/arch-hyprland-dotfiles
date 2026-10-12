@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+"""Compact GTK 3 output picker for the Waybar audio module."""
+
+import json
+import subprocess
+import sys
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+from gi.repository import Gdk, Gtk, Pango
+
+APP_ID = "org.dan.AudioPicker"
+
+
+def pactl(*args):
+    return subprocess.run(
+        ["pactl", *args],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=4,
+    ).stdout.strip()
+
+
+class AudioPicker(Gtk.Application):
+    def __init__(self):
+        super().__init__(application_id=APP_ID)
+        self.window = None
+
+    def do_activate(self):
+        if self.window:
+            self.window.present()
+            return
+
+        self.window = Gtk.ApplicationWindow(application=self)
+        self.window.set_title("Audio output")
+        self.window.set_default_size(460, 360)
+        self.window.set_resizable(False)
+        self.window.set_decorated(False)
+        self.window.set_keep_above(True)
+        self.window.set_position(Gtk.WindowPosition.CENTER)
+        self.window.get_style_context().add_class("audio-picker")
+        self.window.connect("key-press-event", self.on_key_press)
+        self.window.connect("destroy", lambda *_: self.quit())
+        self.load_style()
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        content.set_border_width(10)
+        self.window.add(content)
+
+        self.status = Gtk.Label()
+        self.status.set_xalign(0)
+        self.status.set_line_wrap(True)
+        self.status.get_style_context().add_class("status")
+
+        try:
+            default_sink = pactl("get-default-sink")
+            sinks = json.loads(pactl("-f", "json", "list", "sinks"))
+            if not sinks:
+                self.status.set_text("No audio outputs are available.")
+                content.pack_start(self.status, False, False, 0)
+            else:
+                for sink in sinks:
+                    self.add_sink(content, sink, default_sink)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, json.JSONDecodeError) as error:
+            detail = getattr(error, "stderr", "") or str(error)
+            self.status.set_text(f"Could not read audio devices: {detail.strip()}")
+            content.pack_start(self.status, False, False, 0)
+
+        self.window.show_all()
+        self.window.set_opacity(1.0)
+        self.window.present()
+
+        first_button = next(
+            (child for child in content.get_children() if isinstance(child, Gtk.Button)),
+            None,
+        )
+        if first_button:
+            first_button.grab_focus()
+
+    def add_sink(self, content, sink, default_sink):
+        name = sink.get("name", "")
+        description = sink.get("description") or name or "Unknown output"
+        is_current = name == default_sink
+
+        button = Gtk.Button()
+        button.set_relief(Gtk.ReliefStyle.NONE)
+        button.get_style_context().add_class("device-row")
+        if is_current:
+            button.get_style_context().add_class("current")
+
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        marker = Gtk.Label(label="●" if is_current else "○")
+        marker.get_style_context().add_class("device-marker")
+        row.pack_start(marker, False, False, 0)
+
+        labels = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
+        name_label = Gtk.Label(label=description)
+        name_label.set_xalign(0)
+        name_label.set_ellipsize(Pango.EllipsizeMode.END)
+        name_label.set_max_width_chars(42)
+        name_label.get_style_context().add_class("device-name")
+        if is_current:
+            name_label.get_style_context().add_class("selected")
+        labels.pack_start(name_label, False, False, 0)
+        row.pack_start(labels, True, True, 0)
+        button.add(row)
+        button.connect("clicked", self.select_sink, name)
+        content.pack_start(button, False, False, 0)
+
+    def select_sink(self, _button, sink_name):
+        try:
+            pactl("set-default-sink", sink_name)
+            self.quit()
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+            self.status.set_text(f"Could not switch output: {error}")
+
+    def on_key_press(self, _window, event):
+        if event.keyval == Gdk.KEY_Escape:
+            self.quit()
+            return True
+        return False
+
+    @staticmethod
+    def load_style():
+        css = b"""
+        window.audio-picker {
+            background-color: #080b10;
+            color: #e6edf3;
+            border: 1px solid #626b75;
+        }
+        label { color: #e6edf3; }
+        label.status { color: #aeb7c2; }
+        label.device-name { font-size: 11pt; }
+        label.device-name.selected { font-weight: bold; }
+        label.device-marker { color: #c3cad2; font-size: 16pt; }
+        button.device-row {
+            background-image: none;
+            background-color: #111820;
+            color: #e6edf3;
+            border: 1px solid #626b75;
+            border-radius: 0;
+            padding: 8px 10px;
+            font-size: 10pt;
+            font-weight: normal;
+        }
+        button.device-row:hover, button.device-row:focus {
+            background-image: none;
+            background-color: #20262d;
+            border-color: #aeb7c2;
+            border-radius: 0;
+            padding: 8px 10px;
+            font-size: 10pt;
+            font-weight: normal;
+        }
+        button.device-row.current {
+            background-image: none;
+            background-color: #1a2027;
+            border-color: #aeb7c2;
+            border-radius: 0;
+            padding: 8px 10px;
+            font-size: 10pt;
+            font-weight: normal;
+        }
+        """
+        provider = Gtk.CssProvider()
+        provider.load_from_data(css)
+        screen = Gdk.Screen.get_default()
+        if screen:
+            Gtk.StyleContext.add_provider_for_screen(
+                screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_USER
+            )
+
+
+if __name__ == "__main__":
+    sys.exit(AudioPicker().run(sys.argv))

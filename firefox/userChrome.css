@@ -1,0 +1,4 @@
+/* Hide window controls while keeping Firefox's title bar. */
+.titlebar-buttonbox-container {
+  display: none !important;
+}

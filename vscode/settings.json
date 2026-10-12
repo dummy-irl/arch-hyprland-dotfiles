@@ -1,0 +1,17 @@
+{
+    "editor.minimap.enabled": false,
+    "workbench.startupEditor": "none",
+    "workbench.colorTheme": "Dark Modern",
+    "chatgpt.localeOverride": "en-US",
+    "github.copilot.enable": {
+        "*": false,
+        "plaintext": false,
+        "markdown": false,
+        "scminput": false
+    },
+    "chat.viewSessions.orientation": "stacked",
+    "workbench.statusBar.visible": false,
+    "terminal.integrated.tabs.location": "left",
+    "window.titleBarStyle": "custom",
+    "window.controlsStyle": "hidden"
+}

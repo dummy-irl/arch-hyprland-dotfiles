@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+import json
+import logging
+import select
+import subprocess
+import time
+
+
+logging.basicConfig(level=logging.INFO, format="[audio-device-watcher] %(message)s")
+
+
+def run(*args):
+    return subprocess.run(args, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def sink_data():
+    try:
+        sinks = json.loads(run("pactl", "-f", "json", "list", "sinks"))
+        default = run("pactl", "get-default-sink")
+        return sinks, default
+    except (subprocess.CalledProcessError, json.JSONDecodeError):
+        return [], ""
+
+
+def value_name(value):
+    if isinstance(value, dict):
+        return value.get("name", "")
+    return value or ""
+
+
+def is_available(port):
+    status = str(port.get("availability", "unknown")).lower()
+    return status in ("available", "yes", "true")
+
+
+def is_headphone_port(port):
+    label = (value_name(port).lower() + " " + str(port.get("description", "")).lower())
+    return "headphone" in label or "headset" in label
+
+
+def active_port(sink):
+    active = sink.get("active_port", {})
+    if isinstance(active, dict):
+        return active
+    for port in sink.get("ports", []):
+        if port.get("name") == active:
+            return port
+    return {"name": active}
+
+
+def classify_sinks(sinks):
+    candidates = {}
+    for sink in sinks:
+        name = sink.get("name", "")
+        properties = sink.get("properties", {})
+        if name.startswith("bluez_output.") or properties.get("device.api") == "bluez5":
+            candidates[name] = ("bluetooth", "")
+            continue
+
+        ports = sink.get("ports", [])
+        active = active_port(sink)
+        headphone_ports = [port for port in ports if is_headphone_port(port) and is_available(port)]
+        active_status = str(active.get("availability", "unknown")).lower()
+        if is_headphone_port(active) and active_status not in (
+            "unavailable", "not available", "no", "false"
+        ):
+            candidates[name] = ("wired", value_name(active))
+        elif headphone_ports:
+            candidates[name] = ("wired", value_name(headphone_ports[0]))
+    return candidates
+
+
+def choose_startup(candidates, default):
+    for kind in ("wired", "bluetooth"):
+        matches = [name for name, candidate in candidates.items() if candidate[0] == kind]
+        if matches:
+            return default if default in matches else matches[0]
+    return ""
+
+
+def speaker_sink(sinks, default):
+    by_name = {sink.get("name", ""): sink for sink in sinks}
+    ordered = []
+    if default in by_name:
+        ordered.append(default)
+    ordered.extend(name for name in by_name if name != default)
+    for name in ordered:
+        active = active_port(by_name[name])
+        label = (value_name(active) + " " + str(active.get("description", ""))).lower()
+        if "speaker" in label:
+            return name
+    return ""
+
+
+def set_output(name, port, default):
+    if port:
+        try:
+            run("pactl", "set-sink-port", name, port)
+        except subprocess.CalledProcessError:
+            logging.warning("could not select headphone port %s", port)
+    if name != default:
+        try:
+            run("pactl", "set-default-sink", name)
+            logging.info("switched output to %s", name)
+        except subprocess.CalledProcessError:
+            logging.warning("could not select output %s", name)
+
+
+def reconcile(previous, previous_default, seen_order, startup):
+    sinks, default = sink_data()
+    if not sinks:
+        return previous, previous_default, seen_order, startup
+
+    candidates = classify_sinks(sinks)
+    for name in list(seen_order):
+        if name not in candidates:
+            del seen_order[name]
+    for name in candidates:
+        if name not in seen_order:
+            seen_order[name] = time.monotonic()
+
+    target = ""
+    if startup:
+        target = choose_startup(candidates, default)
+    else:
+        newly_connected = [name for name in candidates if name not in previous]
+        if newly_connected:
+            target = newly_connected[-1]
+        elif previous_default in previous and previous_default not in candidates:
+            remaining = sorted(candidates, key=lambda name: seen_order[name])
+            target = remaining[-1] if remaining else speaker_sink(sinks, default)
+
+    if target and target in candidates:
+        kind, port = candidates[target]
+        set_output(target, port if kind == "wired" else "", default)
+    elif target and target in {sink.get("name") for sink in sinks}:
+        set_output(target, "", default)
+
+    return candidates, default, seen_order, False
+
+
+def main():
+    previous = {}
+    previous_default = ""
+    seen_order = {}
+    startup = True
+
+    while True:
+        try:
+            subscription = subprocess.Popen(
+                ["pactl", "subscribe"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
+            )
+            previous, previous_default, seen_order, startup = reconcile(
+                previous, previous_default, seen_order, startup
+            )
+            assert subscription.stdout is not None
+            for event in subscription.stdout:
+                if " on sink " not in event and " on card " not in event and " on server " not in event:
+                    continue
+                time.sleep(0.25)
+                while select.select([subscription.stdout], [], [], 0)[0]:
+                    if not subscription.stdout.readline():
+                        break
+                previous, previous_default, seen_order, startup = reconcile(
+                    previous, previous_default, seen_order, startup
+                )
+            subscription.wait()
+        except (OSError, subprocess.SubprocessError):
+            logging.warning("audio server unavailable; retrying shortly")
+        time.sleep(2)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,93 @@
+{
+  "layer": "top",
+  "position": "top",
+
+  "modules-left": ["battery", "custom/temperature", "cpu", "custom/memory"],
+  "modules-center": ["hyprland/workspaces"],
+  "modules-right": ["network", "bluetooth", "pulseaudio", "backlight", "clock"],
+
+  "cpu": {
+    "format": " {usage}%",
+    "interval": 2
+  },
+
+  "custom/memory": {
+    "exec": "$HOME/.config/waybar/memory-tooltip",
+    "interval": 5,
+    "return-type": "json",
+    "tooltip": true
+  },
+
+  "custom/temperature": {
+    "exec": "$HOME/.config/waybar/temperature-tooltip",
+    "interval": 5,
+    "return-type": "json",
+    "tooltip": true
+  },
+
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-bluetooth": "{icon} {volume}%",
+    "format-muted": "{icon}",
+    "on-click": "env GTK_THEME=HyprBlack $HOME/.config/waybar/audio-menu",
+    "on-scroll-up": "$HOME/.config/waybar/audio-volume-up",
+    "on-scroll-down": "$HOME/.config/waybar/audio-volume-down",
+    "format-icons": {
+      "headphones": "",
+      "headphone": "",
+      "headphone-muted": "󰟎 muted",
+      "default-muted": "󰖁 muted",
+      "default": ["", "", ""]
+    }
+  },
+
+  "backlight": {
+    "format": " {percent}%",
+    "interval": 2,
+    "on-scroll-up": "brightnessctl set +5%",
+    "on-scroll-down": "brightnessctl set 5%-"
+    /* If it doesn't change, set your device, e.g.:
+       "device": "intel_backlight" */
+  },
+
+  "hyprland/workspaces": {
+    "all-outputs": true,
+    "disable-scroll": false,
+    "format": "{name}"
+  },
+
+  "network": {
+    "interval": 3,
+    "format-wifi": " {essid}",
+    "format-ethernet": " wired",
+    "format-disconnected": "󰖪 offline",
+    "tooltip-format": "{ifname} {ipaddr}",
+    "on-click": "env GTK_THEME=HyprBlack nm-connection-editor"
+  },
+
+  "bluetooth": {
+    "format-on": "󰂯 on",
+    "format-connected": "󰂯 connected",
+    "format-off": "󰂲 off",
+    "format-disabled": "󰂲 off",
+    "tooltip-format-connected": "{device_enumerate}",
+    "tooltip-format-enumerate-connected": "{device_alias}",
+    "on-click": "env GTK_THEME=HyprBlack blueman-manager"
+  },
+
+  "battery": {
+    "interval": 5,
+    "format": "{icon} {capacity}%",
+    "format-charging": " {capacity}%",
+    "tooltip-format": "{time}\n{power} W",
+    "tooltip-format-discharging": "Empty in {time}\n{power} W",
+    "tooltip-format-charging": "Full in {time}\n{power} W",
+    "format-icons": ["","","","",""]
+  },
+
+  "clock": {
+    "format": "{:%H:%M}",
+    "tooltip-format": "{:%A, %d %B %Y}"
+  },
+
+}

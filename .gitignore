@@ -1,0 +1,24 @@
+# User-specific files and private data
+.env
+.env.*
+.aws/
+.ssh/
+*.kdbx
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+known_hosts
+
+# Local/editor/runtime artifacts
+*.save
+*.save.*
+*.bak
+*.bak-*
+*.log
+*.swp
+__pycache__/
+*.py[cod]
+.DS_Store
+.cache/
+
