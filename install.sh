@@ -21,7 +21,7 @@ install_file() {
   install -D -m "$mode" -- "$repo_dir/$source" "$target"
 }
 
-install_file hyprland/hyprland.conf .config/hypr/hyprland.conf 644
+install_file hyprland/hyprland.lua .config/hypr/hyprland.lua 644
 install_file hyprland/compact-workspaces.py .config/hypr/compact-workspaces.py 755
 install_file waybar/config .config/waybar/config 644
 install_file waybar/style.css .config/waybar/style.css 644
@@ -79,4 +79,4 @@ PY
 if [[ "$made_backup" == true ]]; then
   printf 'Previous files were backed up under: %s\n' "$backup_root"
 fi
-printf 'Dotfiles installed. Review the monitor scale in ~/.config/hypr/hyprland.conf, then reload Hyprland.\n'
+printf 'Dotfiles installed. Review the monitor scale in ~/.config/hypr/hyprland.lua, then restart Hyprland.\n'

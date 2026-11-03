@@ -4,7 +4,7 @@ Portable setup for my Arch laptop desktop: Hyprland, Waybar, Mako, Kitty, Thunar
 
 ## Included
 
-- Hyprland keybinds, window rules, animations, laptop media keys, and workspace helper
+- Hyprland 0.57+ Lua config with keybinds, window rules, animations, laptop media keys, and workspace helper
 - Waybar layout, styling, audio output picker/watcher, and temperature/memory tooltips
 - Mako notifications, Kitty preferences, and a custom Thunar “Open Terminal Here” action
 - HyprBlack GTK 3 theme and GTK settings
@@ -13,12 +13,12 @@ Portable setup for my Arch laptop desktop: Hyprland, Waybar, Mako, Kitty, Thunar
 - VS Code/Code OSS user settings, merged by the installer without removing unrelated settings
 - Arch package lists and an installer that backs up files it replaces
 
-The source wallpaper path on this laptop points to a missing image, so the broken hyprpaper config and image are not included. Add your preferred wallpaper path before starting hyprpaper on a new setup. Machine-specific Conda initialization, browser data, KeePassXC state, histories, caches, and the Thunar-generated accelerator dump are not included.
+The Hyprland config starts hyprpaper, but the wallpaper config and image are not included. Add a `hyprpaper.conf` and your preferred image on a new setup. Machine-specific Conda initialization, browser data, KeePassXC state, histories, caches, and the Thunar-generated accelerator dump are not included.
 
 ## Install on another Arch laptop
 
 1. Install Arch Linux and Hyprland, then clone this repository into `~/arch-hyprland-dotfiles`.
-2. Review `hyprland/hyprland.conf`. The monitor rule uses a portable output match and scale `1.25`; change it for the new display if needed.
+2. Review `hyprland/hyprland.lua`. The monitor rule targets `eDP-1` at scale `1.25`; change the output name and scale for the new display if needed. Hyprland 0.57 and newer require this Lua config format. The previous config is retained as `hyprland/hyprland.conf.pre-lua` for reference.
 3. Install the listed packages:
 
    ```sh
@@ -91,6 +91,6 @@ Media, volume, and brightness keys use PipeWire, Playerctl, and BrightnessCtl.
 - The temperature tooltip recognizes Intel `coretemp` and NVMe sensors. Other hardware may show “unavailable” until its sensor names are added.
 - The audio watcher selects newly connected wired headphones or Bluetooth audio devices. Remove its Hyprland `exec-once` line if you prefer to select outputs manually.
 - Super+O expects an Obsidian AppImage at `~/.local/bin/obsidian.AppImage`; the AppImage itself is not included.
-- Hyprpaper is optional and is not started automatically because the current wallpaper image is missing.
+- Hyprpaper is started automatically if installed; add its config and wallpaper image on a new laptop.
 - Super+C and Super+K expect the `code` and `keepassxc` commands to be installed.
 
